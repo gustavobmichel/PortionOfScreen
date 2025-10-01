@@ -133,7 +133,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    }
 
    ShowWindow(hWnd, nCmdShow);
-   SetLayeredWindowAttributes(hWnd, RGB(255, 255, 255), 128, LWA_ALPHA);
+   SetLayeredWindowAttributes(hWnd, RGB(255, 255, 255), 13, LWA_ALPHA);
    UpdateWindow(hWnd);
 
    SetTimer(hWnd, IDT_REDRAW, 200, (TIMERPROC)NULL);
@@ -175,7 +175,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             moveToDefaultWindowPos = false;
         }
 
-        SetLayeredWindowAttributes(hWnd, RGB(255, 255, 255), 128, LWA_ALPHA);
+        SetLayeredWindowAttributes(hWnd, RGB(255, 255, 255), 13, LWA_ALPHA);
         SetWindowLong(hWnd, GWL_EXSTYLE, WS_EX_LAYERED | WS_EX_TOPMOST);
         return DefWindowProc(hWnd, message, wParam, lParam);
 
