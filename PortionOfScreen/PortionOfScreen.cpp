@@ -117,7 +117,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
        WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TRANSPARENT,
        szWindowClass,
        szTitle,
-       WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MAXIMIZEBOX,
+       WS_POPUP | WS_THICKFRAME,
        defaultWindowPos.left,
        defaultWindowPos.top,
        defaultWindowPos.right - defaultWindowPos.left,
@@ -131,10 +131,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    {
       return FALSE;
    }
-
-   HMENU hSysMenu = GetSystemMenu(hWnd, FALSE);
-   AppendMenu(hSysMenu, MF_SEPARATOR, 0, NULL);
-   AppendMenu(hSysMenu, MF_STRING, IDC_OPTIONS, L"Options");
 
    ShowWindow(hWnd, nCmdShow);
    SetLayeredWindowAttributes(hWnd, RGB(255, 255, 255), 128, LWA_ALPHA);
@@ -154,12 +150,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
+
 #ifdef AUTO_REMOVE_CAPTION
     case WM_NCACTIVATE:
     case WM_ACTIVATE:
     case WM_ACTIVATEAPP:
-        // Restore PoS caption
-        SetWindowLong(hWnd, GWL_STYLE, WS_VISIBLE | WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MAXIMIZEBOX);
+        // Window is already popup style, no need to change
         return DefWindowProc(hWnd, message, wParam, lParam);
 #endif
 
@@ -182,6 +178,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         SetLayeredWindowAttributes(hWnd, RGB(255, 255, 255), 128, LWA_ALPHA);
         SetWindowLong(hWnd, GWL_EXSTYLE, WS_EX_LAYERED | WS_EX_TOPMOST);
         return DefWindowProc(hWnd, message, wParam, lParam);
+
+    case WM_RBUTTONUP:
+        {
+            POINT pt = { LOWORD(lParam), HIWORD(lParam) };
+            ClientToScreen(hWnd, &pt);
+            HMENU hMenu = CreatePopupMenu();
+            AppendMenu(hMenu, MF_STRING, IDC_OPTIONS, L"Options");
+            AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
+            AppendMenu(hMenu, MF_STRING, SC_MINIMIZE, L"Minimize");
+            AppendMenu(hMenu, MF_STRING, IDM_EXIT, L"Exit");
+            TrackPopupMenu(hMenu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, hWnd, NULL);
+            DestroyMenu(hMenu);
+        }
+        break;
 
     case WM_KILLFOCUS:
         SetLayeredWindowAttributes(hWnd, RGB(255, 255, 255), 0, LWA_ALPHA);
@@ -212,7 +222,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 HWND hwndForeground = GetForegroundWindow();
                 if (hwndForeground != hWnd)
                 {
-                    // Add a slight delay between activating a window and moving the PoS window. 
+                    // Add a slight delay between activating a window and moving the PoS window.
                     // This makes changing the focused window smoother, less jumpy.
                     if (newFocusHwnd != hwndForeground)
                     {
@@ -224,12 +234,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     if (focusTime < 3)
                         break;
-
-#ifdef AUTO_REMOVE_CAPTION
-                    // Remove PoS caption after one minute. Can't do it earlier because you can't select WS_POPUP windows when sharing a window.
-                    if (focusTime > 300)
-                        SetWindowLong(hWnd, GWL_STYLE, WS_VISIBLE | WS_DISABLED | WS_POPUP);
-#endif
 
                     RECT rectForeground;
                     GetWindowRect(hwndForeground, &rectForeground);
@@ -246,7 +250,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     }
                 }
             }
-            
+
             InvalidateRect(hWnd, NULL, TRUE);
         }
         break;
@@ -294,13 +298,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         PostQuitMessage(0);
         break;
 
-    case WM_SYSCOMMAND:
-        if (wParam == IDC_OPTIONS)
+    case WM_COMMAND:
+        if (LOWORD(wParam) == IDC_OPTIONS)
         {
             DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
             break;
         }
-        // fall through
+        else if (LOWORD(wParam) == SC_MINIMIZE)
+        {
+            ShowWindow(hWnd, SW_MINIMIZE);
+            break;
+        }
+        else if (LOWORD(wParam) == IDM_EXIT)
+        {
+            PostMessage(hWnd, WM_CLOSE, 0, 0);
+            break;
+        }
+        break;
+
+    case WM_SYSCOMMAND:
+        // Handle system commands normally
+        return DefWindowProc(hWnd, message, wParam, lParam);
 
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
