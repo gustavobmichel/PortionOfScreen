@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         configuration: [Debug, Release]
-        platform: [x64, Win32]
+        platform: [x64, x86]
         
     steps:
     - name: Checkout code
@@ -62,7 +62,7 @@ jobs:
         
         # Copy Release builds only for release
         Copy-Item "artifacts/PortionOfScreen-Release-x64/PortionOfScreen.exe" "release-assets/PortionOfScreen-x64.exe" -ErrorAction SilentlyContinue
-        Copy-Item "artifacts/PortionOfScreen-Release-Win32/PortionOfScreen.exe" "release-assets/PortionOfScreen-x86.exe" -ErrorAction SilentlyContinue
+        Copy-Item "artifacts/PortionOfScreen-Release-x86/PortionOfScreen.exe" "release-assets/PortionOfScreen-x86.exe" -ErrorAction SilentlyContinue
         
         # Create zip files
         if (Test-Path "release-assets/PortionOfScreen-x64.exe") {

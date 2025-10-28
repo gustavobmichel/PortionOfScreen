@@ -35,7 +35,7 @@ jobs:
         
     - name: Build Release x86
       run: |
-        msbuild PortionOfScreen.sln /p:Configuration=Release /p:Platform=Win32 /p:OutputPath=..\output\Release-Win32\ /m
+        msbuild PortionOfScreen.sln /p:Configuration=Release /p:Platform=x86 /p:OutputPath=..\output\Release-x86\ /m
         
     - name: Create release package
       run: |
@@ -45,8 +45,8 @@ jobs:
         if (Test-Path "output/Release-x64/PortionOfScreen.exe") {
           Copy-Item "output/Release-x64/PortionOfScreen.exe" "release-package/PortionOfScreen-x64.exe"
         }
-        if (Test-Path "output/Release-Win32/PortionOfScreen.exe") {
-          Copy-Item "output/Release-Win32/PortionOfScreen.exe" "release-package/PortionOfScreen-x86.exe"
+        if (Test-Path "output/Release-x86/PortionOfScreen.exe") {
+          Copy-Item "output/Release-x86/PortionOfScreen.exe" "release-package/PortionOfScreen-x86.exe"
         }
         
         # Create zip files
