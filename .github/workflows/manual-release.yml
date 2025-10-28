@@ -33,10 +33,6 @@ jobs:
       run: |
         msbuild PortionOfScreen.sln /p:Configuration=Release /p:Platform=x64 /p:OutputPath=..\output\Release-x64\ /m
         
-    - name: Build Release x86
-      run: |
-        msbuild PortionOfScreen.sln /p:Configuration=Release /p:Platform=x86 /p:OutputPath=..\output\Release-x86\ /m
-        
     - name: Create release package
       run: |
         New-Item -ItemType Directory -Path "release-package" -Force
