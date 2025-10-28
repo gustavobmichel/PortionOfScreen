@@ -1,0 +1,83 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., v1.0.0)'
+        required: true
+        type: string
+      release_notes:
+        description: 'Release notes'
+        required: false
+        type: string
+        default: 'New release'
+
+jobs:
+  create-tag-and-release:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+      
+    - name: Setup Visual Studio
+      uses: ilammy/msvc-dev-cmd@v1
+      
+    - name: Build Release x64
+      run: |
+        msbuild PortionOfScreen.sln /p:Configuration=Release /p:Platform=x64 /p:OutputPath=..\output\Release-x64\ /m
+        
+    - name: Build Release x86
+      run: |
+        msbuild PortionOfScreen.sln /p:Configuration=Release /p:Platform=Win32 /p:OutputPath=..\output\Release-Win32\ /m
+        
+    - name: Create release package
+      run: |
+        New-Item -ItemType Directory -Path "release-package" -Force
+        
+        # Copy executables
+        if (Test-Path "output/Release-x64/PortionOfScreen.exe") {
+          Copy-Item "output/Release-x64/PortionOfScreen.exe" "release-package/PortionOfScreen-x64.exe"
+        }
+        if (Test-Path "output/Release-Win32/PortionOfScreen.exe") {
+          Copy-Item "output/Release-Win32/PortionOfScreen.exe" "release-package/PortionOfScreen-x86.exe"
+        }
+        
+        # Create zip files
+        if (Test-Path "release-package/PortionOfScreen-x64.exe") {
+          Compress-Archive -Path "release-package/PortionOfScreen-x64.exe" -DestinationPath "release-package/PortionOfScreen-x64.zip"
+        }
+        if (Test-Path "release-package/PortionOfScreen-x86.exe") {
+          Compress-Archive -Path "release-package/PortionOfScreen-x86.exe" -DestinationPath "release-package/PortionOfScreen-x86.zip"
+        }
+        
+        # List created files
+        Get-ChildItem "release-package" -Recurse
+      shell: pwsh
+      
+    - name: Create Git tag
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag -a "${{ github.event.inputs.version }}" -m "Release ${{ github.event.inputs.version }}"
+        git push origin "${{ github.event.inputs.version }}"
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.inputs.version }}
+        name: ${{ github.event.inputs.version }}
+        body: ${{ github.event.inputs.release_notes }}
+        draft: false
+        prerelease: false
+        files: |
+          release-package/*.exe
+          release-package/*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

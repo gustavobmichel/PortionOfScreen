@@ -1,0 +1,83 @@
+name: Build PortionOfScreen
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+        platform: [x64, Win32]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+      
+    - name: Setup Visual Studio
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: ${{ matrix.platform == 'x64' && 'x64' || 'x86' }}
+        
+    - name: Restore NuGet packages
+      run: nuget restore PortionOfScreen.sln
+      
+    - name: Build solution
+      run: |
+        msbuild PortionOfScreen.sln /p:Configuration=${{ matrix.configuration }} /p:Platform=${{ matrix.platform }} /p:OutputPath=..\output\${{ matrix.configuration }}-${{ matrix.platform }}\ /m
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: PortionOfScreen-${{ matrix.configuration }}-${{ matrix.platform }}
+        path: |
+          output/${{ matrix.configuration }}-${{ matrix.platform }}/PortionOfScreen.exe
+          output/${{ matrix.configuration }}-${{ matrix.platform }}/PortionOfScreen.pdb
+        retention-days: 30
+        
+  create-release:
+    needs: build
+    runs-on: windows-latest
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+        
+    - name: Create release assets
+      run: |
+        New-Item -ItemType Directory -Path "release-assets" -Force
+        
+        # Copy Release builds only for release
+        Copy-Item "artifacts/PortionOfScreen-Release-x64/PortionOfScreen.exe" "release-assets/PortionOfScreen-x64.exe" -ErrorAction SilentlyContinue
+        Copy-Item "artifacts/PortionOfScreen-Release-Win32/PortionOfScreen.exe" "release-assets/PortionOfScreen-x86.exe" -ErrorAction SilentlyContinue
+        
+        # Create zip files
+        if (Test-Path "release-assets/PortionOfScreen-x64.exe") {
+          Compress-Archive -Path "release-assets/PortionOfScreen-x64.exe" -DestinationPath "release-assets/PortionOfScreen-x64.zip"
+        }
+        if (Test-Path "release-assets/PortionOfScreen-x86.exe") {
+          Compress-Archive -Path "release-assets/PortionOfScreen-x86.exe" -DestinationPath "release-assets/PortionOfScreen-x86.zip"
+        }
+      shell: pwsh
+      
+    - name: Upload release assets
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          release-assets/*.exe
+          release-assets/*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

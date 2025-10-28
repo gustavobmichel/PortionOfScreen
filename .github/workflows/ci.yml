@@ -1,0 +1,31 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+      
+    - name: Setup Visual Studio
+      uses: ilammy/msvc-dev-cmd@v1
+      
+    - name: Test build (Debug x64)
+      run: |
+        msbuild PortionOfScreen.sln /p:Configuration=Debug /p:Platform=x64 /m
+        
+    - name: Test build (Release x64)
+      run: |
+        msbuild PortionOfScreen.sln /p:Configuration=Release /p:Platform=x64 /m
