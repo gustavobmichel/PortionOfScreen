@@ -33,28 +33,87 @@ jobs:
       run: |
         msbuild PortionOfScreen.sln /p:Configuration=Release /p:Platform=x64 /p:OutputPath=..\output\Release-x64\ /m
         
+    - name: Build Release x86
+      run: |
+        msbuild PortionOfScreen.sln /p:Configuration=Release /p:Platform=x86 /p:OutputPath=..\output\Release-x86\ /m
+        
+    - name: Debug - List build outputs
+      run: |
+        Write-Host "=== Checking build outputs ==="
+        if (Test-Path "output") {
+          Get-ChildItem "output" -Recurse -File | ForEach-Object { Write-Host $_.FullName }
+        } else {
+          Write-Host "Output directory does not exist"
+        }
+        
+        Write-Host "`n=== Checking current directory ==="
+        Get-ChildItem -Recurse -Include "*.exe" | ForEach-Object { Write-Host $_.FullName }
+      shell: pwsh
+        
     - name: Create release package
       run: |
         New-Item -ItemType Directory -Path "release-package" -Force
         
-        # Copy executables
-        if (Test-Path "output/Release-x64/PortionOfScreen.exe") {
-          Copy-Item "output/Release-x64/PortionOfScreen.exe" "release-package/PortionOfScreen-x64.exe"
-        }
-        if (Test-Path "output/Release-x86/PortionOfScreen.exe") {
-          Copy-Item "output/Release-x86/PortionOfScreen.exe" "release-package/PortionOfScreen-x86.exe"
+        Write-Host "=== Looking for executables ==="
+        
+        # Try different possible output locations
+        $possiblePaths = @(
+          "output/Release-x64/PortionOfScreen.exe",
+          "PortionOfScreen/x64/Release/PortionOfScreen.exe",
+          "x64/Release/PortionOfScreen.exe"
+        )
+        
+        $foundX64 = $false
+        foreach ($path in $possiblePaths) {
+          if (Test-Path $path) {
+            Write-Host "Found x64 executable at: $path"
+            Copy-Item $path "release-package/PortionOfScreen-x64.exe"
+            $foundX64 = $true
+            break
+          }
         }
         
-        # Create zip files
+        if (-not $foundX64) {
+          Write-Host "x64 executable not found in any expected location"
+        }
+        
+        # Try different possible output locations for x86
+        $possiblePathsX86 = @(
+          "output/Release-x86/PortionOfScreen.exe",
+          "PortionOfScreen/Release/PortionOfScreen.exe",
+          "PortionOfScreen/x86/Release/PortionOfScreen.exe"
+        )
+        
+        $foundX86 = $false
+        foreach ($path in $possiblePathsX86) {
+          if (Test-Path $path) {
+            Write-Host "Found x86 executable at: $path"
+            Copy-Item $path "release-package/PortionOfScreen-x86.exe"
+            $foundX86 = $true
+            break
+          }
+        }
+        
+        if (-not $foundX86) {
+          Write-Host "x86 executable not found in any expected location"
+        }
+        
+        # Create zip files only if executables were found
         if (Test-Path "release-package/PortionOfScreen-x64.exe") {
           Compress-Archive -Path "release-package/PortionOfScreen-x64.exe" -DestinationPath "release-package/PortionOfScreen-x64.zip"
+          Write-Host "Created x64 zip file"
         }
         if (Test-Path "release-package/PortionOfScreen-x86.exe") {
           Compress-Archive -Path "release-package/PortionOfScreen-x86.exe" -DestinationPath "release-package/PortionOfScreen-x86.zip"
+          Write-Host "Created x86 zip file"
         }
         
-        # List created files
-        Get-ChildItem "release-package" -Recurse
+        Write-Host "`n=== Final release package contents ==="
+        if (Test-Path "release-package") {
+          Get-ChildItem "release-package" -Recurse | ForEach-Object { Write-Host $_.FullName }
+        } else {
+          Write-Host "Release package directory is empty or doesn't exist"
+        }
       shell: pwsh
       
     - name: Create Git tag
@@ -72,8 +131,7 @@ jobs:
         body: ${{ github.event.inputs.release_notes }}
         draft: false
         prerelease: false
-        files: |
-          release-package/*.exe
-          release-package/*.zip
+        files: release-package/*
+        fail_on_unmatched_files: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
